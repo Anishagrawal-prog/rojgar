@@ -1,86 +1,46 @@
 import express from 'express';
+import { AuthRequest } from '../middleware/auth'; // 1. Import the new Request type
+
 const router = express.Router();
 
-// 🟢 GET all projects (public)
+// This route is protected, so we know req.userId will be there.
+
+// GET /api/projects
+// Fetches projects ONLY for the logged-in user
 router.get('/', async (req, res) => {
-  try {
-    const prisma = (req as any).prisma;
-    const projects = await prisma.project.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-    res.json(projects);
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-    res.status(500).json({ error: 'Failed to fetch projects' });
-  }
+  const prisma = (req as any).prisma;
+  const userId = (req as AuthRequest).userId; // Get the user's ID
+
+  const projects = await prisma.project.findMany({
+    where: {
+      ownerId: userId, // <-- 2. THE FIX: Changed from userId to ownerId
+    },
+  });
+
+  res.json(projects);
 });
 
-// 🟢 GET single project by ID
-router.get('/', async (req, res) => {
-  try {
-    const prisma = (req as any).prisma;
-    const projects = await prisma.project.findMany();
-    res.json(projects);
-  } catch (error: any) {
-    console.error('🔥 Prisma error while fetching projects:', error);
-    res.status(500).json({ error: 'Failed to fetch projects' });
-  }
-});
-
-// 🟠 CREATE a new project
+// POST /api/projects
+// Creates a new project for the logged-in user
 router.post('/', async (req, res) => {
-  try {
-    const prisma = (req as any).prisma;
-    const { title, description, budget, skills, status } = req.body;
+  const prisma = (req as any).prisma;
+  const userId = (req as AuthRequest).userId; // Get the user's ID
+  const { title, description } = req.body;
 
-    const project = await prisma.project.create({
-      data: {
-        title,
-        description,
-        budget,
-        skills,
-        status: status || 'OPEN',
-      },
-    });
-
-    res.status(201).json(project);
-  } catch (error) {
-    console.error('Error creating project:', error);
-    res.status(500).json({ error: 'Failed to create project' });
+  if (!title) {
+    return res.status(400).json({ message: 'Title is required' });
   }
-});
 
-// 🟡 UPDATE a project
-router.put('/:id', async (req, res) => {
-  try {
-    const prisma = (req as any).prisma;
-    const id = parseInt(req.params.id, 10);
-    const { title, description, budget, skills, status } = req.body;
+  const newProject = await prisma.project.create({
+    data: {
+      title,
+      description,
+      ownerId: userId, // <-- 2. THE FIX: Changed from userId to ownerId
+    },
+  });
 
-    const updated = await prisma.project.update({
-      where: { id },
-      data: { title, description, budget, skills, status },
-    });
-
-    res.json(updated);
-  } catch (error) {
-    console.error('Error updating project:', error);
-    res.status(500).json({ error: 'Failed to update project' });
-  }
-});
-
-// 🔴 DELETE a project
-router.delete('/:id', async (req, res) => {
-  try {
-    const prisma = (req as any).prisma;
-    const id = parseInt(req.params.id, 10);
-
-    await prisma.project.delete({ where: { id } });
-    res.json({ message: 'Project deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting project:', error);
-    res.status(500).json({ error: 'Failed to delete project' });
-  }
+  res.status(201).json(newProject);
 });
 
 export default router;
+

@@ -17,16 +17,22 @@ model Project {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // optional relation example if you want to link to a user
   ownerId Int?
   owner   User? @relation(fields: [ownerId], references: [id])
 }
 
-// optional user model if needed
 model User {
-  id       Int       @id @default(autoincrement())
-  email    String    @unique
-  name     String?
-  password String
-  projects Project[]
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         Role      @default(USER)
+  projects     Project[]
+}
+
+enum Role {
+  USER
+  ADMIN
+  FREELANCER
+  CLIENT
 }
